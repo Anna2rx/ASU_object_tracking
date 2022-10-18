@@ -2,6 +2,7 @@ import argparse
 
 import cv2
 
+from tracker import ObjectMiddlePointTracker
 
 CONFIDENCE_THRESHOLD = 0.2
 NMS_THRESHOLD = 0.4
@@ -27,6 +28,8 @@ if __name__ == '__main__':
     model = cv2.dnn_DetectionModel(net)
     model.setInputParams(size=(416, 416), scale=1 / 255, swapRB=True)
 
+    tracker = ObjectMiddlePointTracker(threshold=100)
+
     while True:
         success, frame = capture.read()
 
@@ -38,13 +41,16 @@ if __name__ == '__main__':
         classes, scores, boxes = model.detect(frame, CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
         toc = cv2.getTickCount()
         fps = cv2.getTickFrequency() / (toc - tic)
+        #производим трекинг объектов
+        track_ids = tracker.track(boxes)
 
-        for class_id, score, (x1, y1, w, h) in zip(classes, scores, boxes):
+        for class_id, score, (x1, y1, w, h), track_id in zip(classes, scores, boxes, track_ids):
             class_id, score = class_id.item(), score.item()
 
             label = class_names[class_id]
             cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
             cv2.putText(frame, f'{label}: {score:.2f}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.putText(frame, f'{track_id}', (x1 + w // 2, y1 + h // 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         cv2.putText(frame, f'fps = {fps:.0f}', (0, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
